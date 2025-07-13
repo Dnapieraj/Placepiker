@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 
 import Places from './components/Places.jsx'
 import { AVAILABLE_PLACES } from './data.js'
@@ -10,13 +10,21 @@ import { sortPlacesByDistance } from './loc.js'
 function App() {
 	const modal = useRef()
 	const selectedPlace = useRef()
-	const { availablePlaces, setAvailablePlaces } = useState([])
+	const [availablePlaces, setAvailablePlaces] = useState([])
 	const [pickedPlaces, setPickedPlaces] = useState([])
 
-	navigator.geolocation.getCurrentPosition(position => {
-		const sortedPlaces = sortPlacesByDistance(AVAILABLE_PLACES, position.coords.latitude, position.coords.longitude)
-		setAvailablePlaces(sortedPlaces)
-	})
+	useEffect(() => {
+		navigator.geolocation.getCurrentPosition(
+			position => {
+				const sortedPlaces = sortPlacesByDistance(AVAILABLE_PLACES, position.coords.latitude, position.coords.longitude)
+				setAvailablePlaces(sortedPlaces)
+			},
+			error => {
+				alert('Failed to retrieve location. Showing default list of places.')
+				setAvailablePlaces(AVAILABLE_PLACES)
+			}
+		)
+	}, [])
 
 	function handleStartRemovePlace(id) {
 		modal.current.open()
@@ -35,6 +43,11 @@ function App() {
 			const place = AVAILABLE_PLACES.find(place => place.id === id)
 			return [place, ...prevPickedPlaces]
 		})
+
+		const storedIds = JSON.parse(localStorage.getItem('selectedPlaces')) || []
+		if (storedIds.indexOf(id) === -1) {
+			localStorage.setItem('selectedPlaces', JSON.stringify([id, ...storedIds]))
+		}
 	}
 
 	function handleRemovePlace() {
@@ -60,7 +73,12 @@ function App() {
 					places={pickedPlaces}
 					onSelectPlace={handleStartRemovePlace}
 				/>
-				<Places title="Available Places" places={availablePlaces} onSelectPlace={handleSelectPlace} />
+				<Places
+					title="Available Places"
+					places={availablePlaces}
+					fallbackText="Sorting places by distance..."
+					onSelectPlace={handleSelectPlace}
+				/>
 			</main>
 		</>
 	)
